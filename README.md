@@ -1,4 +1,4 @@
-# PrintPoint — Student Print System
+# AutoPrintUtil:PrintPoint — University/Business Print System
 
 A course project for **IP-47**: Users/Students log in with their
 student ID/Email, upload a PDF, preview it in the browser, and send it to a
