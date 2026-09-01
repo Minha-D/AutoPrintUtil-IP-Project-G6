@@ -1,21 +1,22 @@
 # PrintPoint — Student Print System
 
-A course project for **Internet Programming**: students log in with their
-student ID, upload a PDF, preview it in the browser, and send it to a
+A course project for **IP-47**: Users/Students log in with their
+student ID/Email, upload a PDF, preview it in the browser, and send it to a
 connected printer — choosing the number of copies and color or
 black-and-white — without emailing files back and forth or walking a flash
 drive over to the print counter.
-
+This is a system designed for automated printing for businesses / university's where used interaction
+isn't requred for basic Printing Job.
 ## Features
 
-- **Student login** — simple ID-based authentication against a roster
+- **Student login/User** — simple ID-based authentication against a roster
 - **PDF upload** — drag-and-drop-friendly file input, PDF-only validation
 - **In-browser preview** — view an uploaded document before printing it
 - **Print options** — choose number of copies and color / black-and-white
 - **Print log** — every job is recorded with student ID, copies, color mode, and timestamp
 - **Cross-platform printing** — works on Windows (bundled SumatraPDF) and Linux/Mac (`lp`/`lpr`), so the same code runs on a dev machine and a Windows demo PC
 
-## Tech stack
+## Tech stack (Proposed)
 
 | Layer     | Choice                                  |
 |-----------|------------------------------------------|
@@ -23,14 +24,15 @@ drive over to the print counter.
 | Backend   | Node.js, Express                         |
 | Storage   | JSON file (`db.json`) — no DB server to install |
 | Uploads   | Multer                                   |
-| Printing  | [`pdf-to-printer`](https://www.npmjs.com/package/pdf-to-printer) |
+| Printing  | [`pdf-to-printer`](https://www.npmjs.com/package/pdf-to-printer) / A Bash or Python/Rust program which communicats
+with the system printing job|
 
 A flat JSON file stands in for a real database so there's nothing to
 compile or install beyond `npm install` — useful for a Windows demo machine
 that doesn't have MySQL or native build tools set up. Swap in SQLite/MySQL
 later if your rubric requires a real DB.
 
-## Project structure
+## Project structure(Proposed, matter to Change)
 
 ```
 student-print-system/
@@ -52,39 +54,12 @@ student-print-system/
 └── uploads/                 # uploaded PDFs land here
 ```
 
-## Getting started
-
-```bash
-git clone <this-repo-url>
-cd student-print-system
-npm install
-npm start
-```
-
-Open `http://localhost:3000/login.html`.
-
-On first run, `db.json` is created with two seeded test IDs: `2021001` and
-`2021002`. Replace these with your real class roster in `db.js` (or edit
-`db.json` directly after the first run).
-
 ### Connecting a real printer
 
 `routes/print.js` needs the exact printer name as your OS sees it:
 
 - **Windows:** Settings → Bluetooth & devices → Printers & scanners
 - **Linux/Mac:** `lpstat -p`
-
-Set that value in `PRINTER_NAME` inside `routes/print.js`. Once the server
-is running, `GET /api/printers` (while logged in) also lists available
-printers programmatically.
-
-## Pricing / front page
-
-A standalone marketing-style front page (`printpoint-landing.html`) is
-included separately to explain the service to users — ৳3/page for
-black-and-white, ৳5/page for color. It's a single self-contained HTML file
-and isn't wired into the app; it's meant as a landing page you could point
-a domain at, or show alongside the working app in a demo.
 
 ## Notes / limitations
 
