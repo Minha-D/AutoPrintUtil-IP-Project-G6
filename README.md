@@ -76,8 +76,8 @@ student-print-system/
 Built for the **Internet Programming** course. Not affiliated with or
 endorsed by any actual printing vendor.
 ## Here Some Module Illustrations
-![Landing Page](/0.png)
-![Login Page](/1.png)
-![Status Page](/2.png)
-![File Preview Page](/3.png)
-![Printing Status Page](/4.png)
+![Landing Page](/pics/0.png)
+![Login Page](/pics/1.png)
+![Status Page](/pics/2.png)
+![File Preview Page](/pics/3.png)
+![Printing Status Page](/pics/4.png)
