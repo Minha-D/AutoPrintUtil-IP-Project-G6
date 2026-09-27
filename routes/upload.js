@@ -27,3 +27,22 @@ const upload = multer({
   },
   limits: { fileSize: 20 * 1024 * 1024 } // 20MB cap
 });
+
+router.post('/upload', requireAuth, upload.single('pdf'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No PDF file uploaded' });
+  }
+
+  const db = readDB();
+  const doc = {
+    id: Date.now().toString(),
+    studentId: req.session.studentId,
+    originalName: req.file.originalname,
+    filename: req.file.filename,
+    uploadedAt: new Date().toISOString()
+  };
+  db.documents.push(doc);
+  writeDB(db);
+
+  res.json({ success: true, document: doc });
+});
