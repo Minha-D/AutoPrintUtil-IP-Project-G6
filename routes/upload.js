@@ -46,3 +46,11 @@ router.post('/upload', requireAuth, upload.single('pdf'), (req, res) => {
 
   res.json({ success: true, document: doc });
 });
+
+router.get('/documents', requireAuth, (req, res) => {
+  const db = readDB();
+  const docs = db.documents.filter(d => d.studentId === req.session.studentId);
+  res.json(docs);
+});
+
+module.exports = router;
