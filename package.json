@@ -2,9 +2,9 @@
   "name": "student-print-system",
   "version": "1.0.0",
   "description": "Student ID login + PDF upload web app that sends print jobs to a connected printer",
-  "main": "server.js",
+  "main": "public/server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node public/server.js"
   },
   "dependencies": {
     "express": "^4.19.2",
