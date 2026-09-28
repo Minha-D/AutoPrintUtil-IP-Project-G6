@@ -28,3 +28,19 @@ router.post('/print', requireAuth, async (req, res) => {
       printer: PRINTER_NAME,
       sumatraPdfSettings: [color === 'bw' ? 'monochrome' : 'color', `${numCopies}x`]
     }); 
+    
+ db.printLog.push({
+      documentId: doc.id,
+      studentId: req.session.studentId,
+      copies: numCopies,
+      color,
+      printedAt: new Date().toISOString()
+    });
+    writeDB(db);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Print failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
