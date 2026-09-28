@@ -14,7 +14,8 @@ isn't requred for basic Printing Job.
 - **In-browser preview** — view an uploaded document before printing it
 - **Print options** — choose number of copies and color / black-and-white
 - **Print log** — every job is recorded with student ID, copies, color mode, and timestamp
-- **Cross-platform printing** — works on Windows (bundled SumatraPDF) and Linux/Mac (`lp`/`lpr`), so the same code runs on a dev machine and a Windows demo PC
+- **FIFO print queue** — jobs are processed one at a time; users see their queue position, active printing state, and completion status
+- **Windows printing** — sends jobs through the Windows printer queue using the bundled SumatraPDF engine
 
 ## Tech stack (Proposed)
 
@@ -24,8 +25,7 @@ isn't requred for basic Printing Job.
 | Backend   | Node.js, Express                         |
 | Storage   | JSON file (`db.json`) — no DB server to install |
 | Uploads   | Multer                                   |
-| Printing  | [`pdf-to-printer`](https://www.npmjs.com/package/pdf-to-printer) / A Bash or Python/Rust program which communicats
-with the system printing job|
+| Printing  | [`pdf-to-printer`](https://www.npmjs.com/package/pdf-to-printer) |
 
 A flat JSON file stands in for a real database so there's nothing to
 compile or install beyond `npm install` — useful for a Windows demo machine
@@ -56,10 +56,28 @@ student-print-system/
 
 ### Connecting a real printer
 
-`routes/print.js` needs the exact printer name as your OS sees it:
+Printing uses the Windows default printer unless `PRINTER_NAME` is set to an exact installed printer name.
 
-- **Windows:** Settings → Bluetooth & devices → Printers & scanners
-- **Linux/Mac:** `lpstat -p`
+### Run on Windows
+
+1. Install Node.js 18 or newer and add your printer in Windows Settings → Bluetooth & devices → Printers & scanners. Set it as the default printer if you want to use automatic selection.
+2. Open PowerShell in the project folder and run:
+
+```powershell
+npm install
+npm start
+```
+
+3. Open `http://localhost:3000` and log in with a student ID listed in `db.js`.
+
+To choose a specific printer instead of the Windows default, get its exact name with `Get-Printer`, then set it before starting the server:
+
+```powershell
+$env:PRINTER_NAME = "Exact printer name"
+npm start
+```
+
+The `PRINTER_NAME` setting only applies to that PowerShell session. `pdf-to-printer` is Windows-only; printing on Linux or macOS requires a different printer library.
 
 ## Notes / limitations
 

@@ -41,6 +41,7 @@
             <tr>
               <th>File name</th>
               <th>Uploaded</th>
+              <th>Print status</th>
               <th class="text-end">Actions</th>
             </tr>
           </thead>
@@ -62,7 +63,10 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
-          <div id="printError" class="alert alert-danger d-none"></div>
+          <div id="printStatus" class="alert alert-info d-none" role="status" aria-live="polite">
+            <span id="printStatusSpinner" class="spinner-border spinner-border-sm me-2 d-none" aria-hidden="true"></span>
+            <span id="printStatusMessage"></span>
+          </div>
           <p class="mb-3">Printing: <strong id="printFileName"></strong></p>
           <div class="mb-3">
             <label for="copiesInput" class="form-label">Number of copies</label>
