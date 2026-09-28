@@ -44,3 +44,15 @@ router.post('/print', requireAuth, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+// Handy endpoint to check exact printer names available on the machine
+router.get('/printers', requireAuth, async (req, res) => {
+  try {
+    const printers = await getPrinters();
+    res.json(printers);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+module.exports = router;
+
