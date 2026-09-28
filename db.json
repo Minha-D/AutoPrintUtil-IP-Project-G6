@@ -1,0 +1,26 @@
+{
+  "students": [
+    {
+      "id": "0222510005101083",
+      "name": "Minhazul Hassan"
+    },
+    {
+      "id": "0222510005101090",
+      "name": "Istiak Isti"
+    },
+    {
+      "id": "0222510005101211",
+      "name": "Tahozid Bin Shahadat"
+    }
+  ],
+  "documents": [
+    {
+      "id": "1790618036762",
+      "studentId": "0222510005101083",
+      "originalName": "Class Routine Fall 2025.pdf",
+      "filename": "0222510005101083_1790618036715.pdf",
+      "uploadedAt": "2026-09-28T17:53:56.762Z"
+    }
+  ],
+  "printLog": []
+}
