@@ -20,3 +20,11 @@ router.post('/print', requireAuth, async (req, res) => {
   if (!doc) {
     return res.status(404).json({ error: 'Document not found' });
   }
+ const filePath = path.join(__dirname, '..', 'uploads', doc.filename);
+  const numCopies = Math.max(1, parseInt(copies, 10) || 1);
+
+  try {
+    await print(filePath, {
+      printer: PRINTER_NAME,
+      sumatraPdfSettings: [color === 'bw' ? 'monochrome' : 'color', `${numCopies}x`]
+    }); 
