@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>System Admin — Student Print System</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    :root { --ink: #202522; --muted: #66716b; --line: #dce2de; --canvas: #f3f6f3; --green: #176b4b; --lime: #d9f16a; }
+    body { background: var(--canvas); color: var(--ink); font-family: "Segoe UI", Arial, sans-serif; }
+    .topbar { background: var(--ink); color: #fff; }
+    .brand-mark { color: var(--lime); font-weight: 700; }
+    .page-shell { max-width: 1440px; }
+    .section-heading { font-size: 1rem; font-weight: 700; margin: 0; }
+    .eyebrow { color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; }
+    .metric { background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 1rem 1.1rem; height: 100%; }
+    .metric-label { color: var(--muted); font-size: .82rem; }
+    .metric-value { font-size: 1.4rem; font-weight: 700; line-height: 1.25; overflow-wrap: anywhere; }
+    .panel { background: #fff; border: 1px solid var(--line); border-radius: 6px; }
+    .panel-head { padding: 1rem 1.1rem; border-bottom: 1px solid var(--line); }
+    .panel-body { padding: 1rem 1.1rem; }
+    .table { --bs-table-bg: transparent; margin-bottom: 0; }
+    .table th { color: var(--muted); font-size: .76rem; font-weight: 600; text-transform: uppercase; white-space: nowrap; }
+    .table td, .table th { padding: .75rem .65rem; vertical-align: middle; }
+    .status-dot { display: inline-block; width: .55rem; height: .55rem; border-radius: 50%; margin-right: .4rem; background: #78827c; }
+    .status-good { background: #21865d; }
+    .status-warn { background: #d29c12; }
+    .status-bad { background: #b93f38; }
+    .queue-count { font-size: 1.3rem; font-weight: 700; }
+    .failure { border-left: 3px solid #b93f38; padding: .65rem .8rem; background: #fff8f6; margin-bottom: .55rem; }
+    .failure:last-child { margin-bottom: 0; }
+    .failure-message { overflow-wrap: anywhere; }
+    @media (max-width: 575px) {
+      .table-responsive { margin: 0; }
+      .metric-value { font-size: 1.2rem; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar py-3">
+    <div class="container-fluid page-shell d-flex align-items-center justify-content-between gap-3">
+      <div><div class="brand-mark">PRINTPOINT / OPERATIONS</div><div class="small text-white-50">System administration</div></div>
+      <div class="d-flex gap-2"><a class="btn btn-outline-light btn-sm" href="documents.html">Documents</a><button id="logoutBtn" class="btn btn-light btn-sm">Log out</button></div>
+    </div>
+  </header>
+
+  <main class="container-fluid page-shell py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
+      <div><div class="eyebrow">Live overview</div><h1 class="h3 mb-0">System status</h1></div>
+      <div class="d-flex align-items-center gap-3"><span id="refreshedAt" class="small text-secondary">Loading status…</span><button id="refreshBtn" class="btn btn-outline-dark btn-sm">Refresh</button></div>
+    </div>
+    <div id="loadError" class="alert alert-danger d-none" role="alert"></div>
+
+    <section aria-label="Machine status" class="mb-4">
+      <div class="row g-3">
+        <div class="col-6 col-lg-3"><div class="metric"><div class="metric-label">Machine</div><div id="machineName" class="metric-value">—</div><div id="machinePlatform" class="small text-secondary mt-1">—</div></div></div>
+        <div class="col-6 col-lg-3"><div class="metric"><div class="metric-label">Processor</div><div id="cpuName" class="metric-value">—</div><div id="cpuCount" class="small text-secondary mt-1">—</div><div id="cpuUsage" class="small text-secondary">—</div></div></div>
+        <div class="col-6 col-lg-3"><div class="metric"><div class="metric-label">Memory</div><div id="memoryUsage" class="metric-value">—</div><div id="memoryDetail" class="small text-secondary mt-1">—</div></div></div>
+        <div class="col-6 col-lg-3"><div class="metric"><div class="metric-label">System uptime</div><div id="machineUptime" class="metric-value">—</div><div id="diskUsage" class="small text-secondary mt-1">Disk: —</div></div></div>
+      </div>
+    </section>
+
+    <section class="panel mb-4" aria-labelledby="printersHeading">
+      <div class="panel-head d-flex justify-content-between align-items-center gap-3"><div><div class="eyebrow">Devices</div><h2 id="printersHeading" class="section-heading">Connected printers</h2></div><span id="printerSummary" class="small text-secondary">—</span></div>
+      <div class="table-responsive"><table class="table"><thead><tr><th>Printer</th><th>Status</th><th>Default</th><th>Print queue</th></tr></thead><tbody id="printersBody"><tr><td colspan="4" class="text-secondary">Loading…</td></tr></tbody></table></div>
+      <div id="printerError" class="small text-danger px-3 pb-3 d-none"></div>
+    </section>
+
+    <div class="row g-4 mb-4">
+      <section class="col-lg-5" aria-labelledby="storageHeading"><div class="panel h-100"><div class="panel-head"><div class="eyebrow">Application data</div><h2 id="storageHeading" class="section-heading">Storage used</h2></div><div class="panel-body">
+        <div class="d-flex justify-content-between border-bottom py-2"><span>Uploaded documents</span><strong id="uploadsStorage">—</strong></div>
+        <div class="d-flex justify-content-between border-bottom py-2"><span>Database</span><strong id="databaseStorage">—</strong></div>
+        <div class="d-flex justify-content-between pt-3"><span>Total app data</span><strong id="totalStorage">—</strong></div><div id="documentCount" class="small text-secondary mt-2">—</div>
+      </div></div></section>
+      <section class="col-lg-7" aria-labelledby="queueHeading"><div class="panel h-100"><div class="panel-head"><div class="eyebrow">Print activity</div><h2 id="queueHeading" class="section-heading">Queue totals</h2></div><div class="panel-body"><div class="row g-3 text-center">
+        <div class="col-3"><div id="queuedCount" class="queue-count">—</div><div class="small text-secondary">Pending</div></div>
+        <div class="col-3"><div id="printingCount" class="queue-count">—</div><div class="small text-secondary">Printing</div></div>
+        <div class="col-3"><div id="completedCount" class="queue-count">—</div><div class="small text-secondary">Completed</div></div>
+        <div class="col-3"><div id="failedCount" class="queue-count text-danger">—</div><div class="small text-secondary">Failed</div></div>
+      </div></div></div></section>
+    </div>
+
+    <section class="panel mb-4" aria-labelledby="usersHeading"><div class="panel-head d-flex justify-content-between align-items-center"><div><div class="eyebrow">Accounts</div><h2 id="usersHeading" class="section-heading">Login users</h2></div><span id="userCount" class="small text-secondary">—</span></div>
+      <div class="table-responsive"><table class="table"><thead><tr><th>Name</th><th>Student ID</th><th>Documents</th><th>Storage used</th></tr></thead><tbody id="usersBody"><tr><td colspan="4" class="text-secondary">Loading…</td></tr></tbody></table></div>
+    </section>
+
+    <section class="panel" aria-labelledby="failuresHeading"><div class="panel-head"><div class="eyebrow">Attention</div><h2 id="failuresHeading" class="section-heading">Recent print errors</h2></div><div id="failuresBody" class="panel-body"><div class="text-secondary">Loading…</div></div></section>
+  </main>
+  <script src="js/admin.js"></script>
+</body>
+</html>

@@ -18,7 +18,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
       return;
     }
 
-    window.location.href = 'documents.html';
+    window.location.href = data.isAdmin ? 'admin.html' : 'documents.html';
   } catch (err) {
     errorBox.textContent = 'Could not reach server';
     errorBox.classList.remove('d-none');

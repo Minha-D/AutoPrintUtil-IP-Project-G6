@@ -5,6 +5,8 @@ const path = require('path');
 const authRoutes = require('../routes/auth');
 const uploadRoutes = require('../routes/upload');
 const printRoutes = require('../routes/print');
+const adminRoutes = require('../routes/admin');
+const { requireAdmin, requireAdminPage } = require('../middleware/admin');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -23,6 +25,10 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'landing.html'));
 });
 
+app.get('/admin.html', requireAdminPage, (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
 // Keep the server entry point private while serving frontend assets.
 app.get('/server.js', (req, res) => res.sendStatus(404));
 app.use(express.static(__dirname));
@@ -33,6 +39,7 @@ app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 app.use('/api', authRoutes);
 app.use('/api', uploadRoutes);
 app.use('/api', printRoutes);
+app.use('/api', adminRoutes);
 
 app.listen(PORT, () => {
   console.log(`Student Print System running at http://localhost:${PORT}`);

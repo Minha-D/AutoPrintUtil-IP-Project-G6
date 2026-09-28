@@ -12,6 +12,13 @@ async function checkSession() {
   }
   const data = await res.json();
   document.getElementById('studentName').textContent = `${data.name} (${data.studentId})`;
+  if (data.isAdmin) {
+    const adminLink = document.createElement('a');
+    adminLink.href = 'admin.html';
+    adminLink.className = 'btn btn-outline-light btn-sm me-3';
+    adminLink.textContent = 'Admin';
+    document.getElementById('studentName').after(adminLink);
+  }
 }
 
 async function loadDocuments() {

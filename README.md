@@ -79,6 +79,17 @@ npm start
 
 The `PRINTER_NAME` setting only applies to that PowerShell session. `pdf-to-printer` is Windows-only; printing on Linux or macOS requires a different printer library.
 
+### Admin dashboard
+
+Set `ADMIN_IDS` to a comma-separated list of admin login IDs before starting the server. Admin IDs do not need to be in the student roster.
+
+```powershell
+$env:ADMIN_IDS = "admin-id-1,admin-id-2"
+npm start
+```
+
+Admins sign in through the normal login page and are sent to `/admin.html`. The dashboard is refreshed every 15 seconds and shows machine resources, printer status, storage usage, accounts, queue totals, and recent print errors.
+
 ## Notes / limitations
 
 - Sessions use `express-session`'s in-memory store — fine for a single-server
