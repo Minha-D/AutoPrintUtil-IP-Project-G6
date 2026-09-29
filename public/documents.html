@@ -20,7 +20,13 @@
   <div class="container">
     <div class="card shadow-sm mb-4">
       <div class="card-body">
-        <h5 class="card-title">Upload a PDF</h5>
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+          <div>
+            <h5 class="card-title mb-1">Upload a PDF</h5>
+            <p class="text-muted small mb-0">For a cover page, create it with the PUC Cover Page Maker, save its print preview as a PDF, then upload it here.</p>
+          </div>
+          <a class="btn btn-outline-primary btn-sm" href="https://puccover.netlify.app/" target="_blank" rel="noopener noreferrer">Open cover-page maker</a>
+        </div>
         <div id="uploadError" class="alert alert-danger d-none"></div>
         <form id="uploadForm" class="row g-2 align-items-center">
           <div class="col-auto flex-grow-1">

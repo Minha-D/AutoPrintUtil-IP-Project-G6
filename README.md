@@ -83,6 +83,10 @@ The `PRINTER_NAME` setting only applies to that PowerShell session. `pdf-to-prin
 
 The server counts pages from the uploaded PDF and calculates the receipt: color is ৳5 per page and black & white is ৳3 per page, multiplied by copies. The user submits a payment request after paying offline. An admin reviews the receipt in the admin dashboard; approval adds the job to the FIFO print queue, while rejection never prints it. This is a project/demo simulation, not a payment gateway: the app cannot verify that money was actually received.
 
+### Cover-page maker
+
+The documents page links to the external [PUC Cover Page Maker](https://puccover.netlify.app/). Generate a cover there, save its print preview as a PDF, then upload the PDF here to use the same receipt, payment-approval, and print-queue flow. Automatic import is not available because the external site does not expose a documented export API or cross-origin integration endpoint.
+
 ### Uploaded document privacy
 
 Uploads are stored in separate, hashed per-user folders. The app no longer serves the uploads directory as public static files; viewing and printing a document require an authenticated session that owns its document record. On Linux/macOS, folders and files use owner-only permissions. On Windows, the uploads directory inherits an ACL restricted to the account running the server and SYSTEM. Existing flat-folder uploads are moved into their owner's folder when the server starts.
