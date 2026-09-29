@@ -79,16 +79,26 @@ npm start
 
 The `PRINTER_NAME` setting only applies to that PowerShell session. `pdf-to-printer` is Windows-only; printing on Linux or macOS requires a different printer library.
 
+### Print receipts and payment approval
+
+The server counts pages from the uploaded PDF and calculates the receipt: color is ৳5 per page and black & white is ৳3 per page, multiplied by copies. The user submits a payment request after paying offline. An admin reviews the receipt in the admin dashboard; approval adds the job to the FIFO print queue, while rejection never prints it. This is a project/demo simulation, not a payment gateway: the app cannot verify that money was actually received.
+
+### Uploaded document privacy
+
+Uploads are stored in separate, hashed per-user folders. The app no longer serves the uploads directory as public static files; viewing and printing a document require an authenticated session that owns its document record. On Linux/macOS, folders and files use owner-only permissions. On Windows, the uploads directory inherits an ACL restricted to the account running the server and SYSTEM. Existing flat-folder uploads are moved into their owner's folder when the server starts.
+
+A machine administrator or root user can override local filesystem permissions and access files on that machine. Preventing that requires keeping the files on a separately controlled server or encrypted storage whose keys are unavailable to the machine administrator.
+
 ### Admin dashboard
 
-Set `ADMIN_IDS` to a comma-separated list of admin login IDs before starting the server. Admin IDs do not need to be in the student roster.
+Open `/admin` and sign in with the default password `admin123`. Set `ADMIN_PASSWORD` before starting the server to replace the default. For a shared or deployed machine, always set a private password.
 
 ```powershell
-$env:ADMIN_IDS = "admin-id-1,admin-id-2"
+$env:ADMIN_PASSWORD = "use-a-private-password"
 npm start
 ```
 
-Admins sign in through the normal login page and are sent to `/admin.html`. The dashboard is refreshed every 15 seconds and shows machine resources, printer status, storage usage, accounts, queue totals, and recent print errors.
+Alternatively, `ADMIN_IDS` may contain comma-separated student IDs that should retain admin access through the normal student login. The dashboard refreshes every 15 seconds and shows machine resources, printer status, storage usage, accounts, queue totals, and recent print errors.
 
 ## Notes / limitations
 

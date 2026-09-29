@@ -3,17 +3,139 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFile } = require('child_process');
+const { timingSafeEqual } = require('crypto');
 const { promisify } = require('util');
-const { readDB } = require('../db');
+const { readDB, writeDB } = require('../db');
 const { requireAdmin } = require('../middleware/admin');
+const { getDocumentPath } = require('../lib/user-files');
 const { getPrinters, getDefaultPrinter } = require('pdf-to-printer');
+const printRoutes = require('./print');
 
 const router = express.Router();
 const execFileAsync = promisify(execFile);
 const rootDir = path.join(__dirname, '..');
 const uploadsDir = path.join(rootDir, 'uploads');
 
+function passwordMatches(candidate) {
+  const expected = Buffer.from(process.env.ADMIN_PASSWORD || 'admin123');
+  const supplied = Buffer.from(typeof candidate === 'string' ? candidate : '');
+  return expected.length === supplied.length && timingSafeEqual(expected, supplied);
+}
+
+router.post('/admin/login', (req, res) => {
+  if (!passwordMatches(req.body.password)) {
+    return res.status(401).json({ error: 'Incorrect admin password.' });
+  }
+
+  req.session.regenerate(err => {
+    if (err) return res.status(500).json({ error: 'Could not start admin session.' });
+    req.session.isAdmin = true;
+    req.session.studentName = 'Administrator';
+    res.json({ success: true });
+  });
+});
+
 router.use(requireAdmin);
+
+router.get('/admin/payment-requests', (req, res) => {
+  const db = readDB();
+  const students = new Map((db.students || []).map(student => [student.id, student.name]));
+  const requests = Array.isArray(db.paymentRequests) ? db.paymentRequests : [];
+  res.json(requests
+    .filter(request => request.status === 'pending_approval')
+    .slice()
+    .reverse()
+    .map(request => ({
+      requestId: request.requestId,
+      studentId: request.studentId,
+      studentName: students.get(request.studentId) || 'Unknown user',
+      documentId: request.documentId,
+      filename: request.filename,
+      pages: request.pages,
+      copies: request.copies,
+      color: request.color,
+      ratePerPage: request.ratePerPage,
+      totalPages: request.totalPages,
+      totalBdt: request.totalBdt,
+      requestedAt: request.requestedAt
+    })));
+});
+
+router.get('/admin/payment-history', (req, res) => {
+  const db = readDB();
+  const students = new Map((db.students || []).map(student => [student.id, student.name]));
+  const jobsById = new Map((db.printLog || []).map(job => [job.jobId, job]));
+  const requests = Array.isArray(db.paymentRequests) ? db.paymentRequests : [];
+
+  res.json(requests
+    .slice()
+    .reverse()
+    .slice(0, 100)
+    .map(request => {
+      const printJob = request.printJobId ? jobsById.get(request.printJobId) : null;
+      return {
+        requestId: request.requestId,
+        studentId: request.studentId,
+        studentName: students.get(request.studentId) || 'Unknown user',
+        documentId: request.documentId,
+        filename: request.filename,
+        pages: request.pages,
+        copies: request.copies,
+        color: request.color,
+        ratePerPage: request.ratePerPage,
+        totalPages: request.totalPages,
+        totalBdt: request.totalBdt,
+        status: request.status,
+        requestedAt: request.requestedAt,
+        reviewedAt: request.reviewedAt,
+        reviewedBy: request.reviewedBy,
+        rejectionReason: request.rejectionReason,
+        printStatus: printJob?.status || null,
+        printError: printJob?.error || null,
+        printedAt: printJob?.completedAt || null
+      };
+    }));
+});
+
+router.post('/admin/payment-requests/:requestId/review', (req, res) => {
+  const decision = req.body.decision;
+  if (!['approve', 'reject'].includes(decision)) {
+    return res.status(400).json({ error: 'Choose approve or reject.' });
+  }
+
+  const db = readDB();
+  db.paymentRequests = Array.isArray(db.paymentRequests) ? db.paymentRequests : [];
+  const request = db.paymentRequests.find(entry => entry.requestId === req.params.requestId);
+  if (!request) return res.status(404).json({ error: 'Payment request not found.' });
+  if (request.status !== 'pending_approval') {
+    return res.status(409).json({ error: 'This payment request has already been reviewed.' });
+  }
+
+  request.status = decision === 'approve' ? 'approved' : 'rejected';
+  request.reviewedAt = new Date().toISOString();
+  request.reviewedBy = req.session.studentId || 'password-admin';
+  if (decision === 'reject') {
+    request.rejectionReason = typeof req.body.reason === 'string'
+      ? req.body.reason.trim().slice(0, 240)
+      : '';
+    writeDB(db);
+    return res.json({ success: true, status: request.status });
+  }
+
+  writeDB(db);
+  const printJob = printRoutes.enqueueApprovedRequest(request);
+  if (!printJob) {
+    const latestDb = readDB();
+    const savedRequest = latestDb.paymentRequests.find(entry => entry.requestId === request.requestId);
+    savedRequest.status = 'pending_approval';
+    delete savedRequest.reviewedAt;
+    delete savedRequest.reviewedBy;
+    writeDB(latestDb);
+    return res.status(500).json({ error: 'Could not add the approved payment to the print queue.' });
+  }
+
+  res.json({ success: true, status: request.status, position: printJob.position });
+});
 
 async function getDirectoryBytes(directory) {
   let total = 0;
@@ -164,7 +286,8 @@ router.get('/admin/status', async (req, res) => {
           documents: userDocuments.length,
           storageBytes: userDocuments.reduce((total, document) => {
             try {
-              return total + fs.statSync(path.join(uploadsDir, path.basename(document.filename))).size;
+              const filePath = getDocumentPath(document.studentId, document.filename);
+              return filePath ? total + fs.statSync(filePath).size : total;
             } catch {
               return total;
             }
@@ -187,6 +310,8 @@ router.get('/admin/status', async (req, res) => {
         completed: printJobs.filter(job => job.status === 'completed').length,
         failed: printJobs.filter(job => job.status === 'failed').length
       },
+      pendingPaymentApprovals: (Array.isArray(db.paymentRequests) ? db.paymentRequests : [])
+        .filter(request => request.status === 'pending_approval').length,
       failures
     });
   } catch (err) {

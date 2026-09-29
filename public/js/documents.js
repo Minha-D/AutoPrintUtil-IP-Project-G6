@@ -1,6 +1,7 @@
 let currentPrintDocId = null;
 let printStatusPollTimer = null;
 let printStatusRefreshInProgress = false;
+let quoteRefreshId = 0;
 const printModal = new bootstrap.Modal(document.getElementById('printModal'));
 const previewModal = new bootstrap.Modal(document.getElementById('previewModal'));
 
@@ -31,6 +32,7 @@ async function loadDocuments() {
 
   if (docs.length === 0) {
     noDocsMsg.classList.remove('d-none');
+    refreshPrintStatuses();
     return;
   }
   noDocsMsg.classList.add('d-none');
@@ -43,7 +45,7 @@ async function loadDocuments() {
       <td>${new Date(doc.uploadedAt).toLocaleString()}</td>
       <td><span class="badge d-none" data-print-status></span></td>
       <td class="text-end">
-        <button class="btn btn-sm btn-outline-secondary me-1" onclick="viewDoc('${doc.filename}', '${doc.originalName}')">View</button>
+        <button class="btn btn-sm btn-outline-secondary me-1" onclick="viewDoc('${doc.id}', '${doc.originalName}')">View</button>
         <button class="btn btn-sm btn-primary" onclick="openPrintModal('${doc.id}', '${doc.originalName}')">Print</button>
       </td>
     `;
@@ -74,9 +76,67 @@ function updateDocumentPrintStatus(documentId, job) {
   } else if (job.status === 'failed') {
     badge.classList.add('bg-danger');
     badge.textContent = 'Print failed';
+  } else if (job.status === 'pending_approval') {
+    badge.classList.add('bg-warning', 'text-dark');
+    badge.textContent = 'Payment approval pending';
+  } else if (job.status === 'rejected') {
+    badge.classList.add('bg-danger');
+    badge.textContent = 'Payment request rejected';
   } else {
     badge.classList.add('d-none');
   }
+}
+
+function paymentStatusLabel(status) {
+  return ({
+    pending_approval: 'Awaiting admin',
+    approved: 'Approved',
+    rejected: 'Rejected'
+  })[status] || status || 'Unknown';
+}
+
+function printStatusLabel(request) {
+  if (request.printStatus === 'queued') return 'Queued';
+  if (request.printStatus === 'printing') return 'Printing';
+  if (request.printStatus === 'completed') return 'Complete';
+  if (request.printStatus === 'failed') return request.printError
+    ? `Failed · ${request.printError}`
+    : 'Failed';
+  if (request.status === 'rejected') return request.rejectionReason || 'Not printed';
+  if (request.status === 'pending_approval') return 'Waiting for approval';
+  return 'Not started';
+}
+
+function renderPaymentHistory(requests) {
+  const tbody = document.getElementById('paymentHistoryBody');
+  const count = document.getElementById('paymentHistoryCount');
+  if (!tbody || !count) return;
+  tbody.replaceChildren();
+  count.textContent = `${requests.length} requests`;
+
+  if (!requests.length) {
+    const row = tbody.insertRow();
+    const cell = row.insertCell();
+    cell.colSpan = 5;
+    cell.className = 'text-muted';
+    cell.textContent = 'No payment requests yet.';
+    return;
+  }
+
+  requests.forEach(request => {
+    const row = tbody.insertRow();
+    row.insertCell().textContent = request.requestedAt
+      ? new Date(request.requestedAt).toLocaleString()
+      : '—';
+    row.insertCell().textContent = request.filename;
+    row.insertCell().textContent = `${request.totalPages} pages · ৳${request.totalBdt} BDT`;
+    row.insertCell().textContent = paymentStatusLabel(request.status);
+    const printCell = row.insertCell();
+    printCell.textContent = printStatusLabel(request);
+    if (request.printError || request.rejectionReason) {
+      printCell.title = request.printError || request.rejectionReason;
+    }
+  });
 }
 
 async function refreshPrintStatuses() {
@@ -88,17 +148,35 @@ async function refreshPrintStatuses() {
   printStatusRefreshInProgress = true;
 
   try {
-    const response = await fetch('/api/print/jobs');
-    if (!response.ok) return;
+    const [jobsResponse, requestsResponse] = await Promise.all([
+      fetch('/api/print/jobs'),
+      fetch('/api/print/payment-requests')
+    ]);
+    if (!jobsResponse.ok || !requestsResponse.ok) return;
 
-    const jobs = await response.json();
+    const jobs = await jobsResponse.json();
+    const requests = await requestsResponse.json();
+    renderPaymentHistory(requests);
     const latestJobs = new Map();
+    requests.forEach(request => {
+      if (!latestJobs.has(request.documentId)) {
+        latestJobs.set(request.documentId, {
+          status: request.status,
+          position: null,
+          error: request.rejectionReason
+        });
+      }
+    });
     jobs.forEach(job => {
-      if (!latestJobs.has(job.documentId)) latestJobs.set(job.documentId, job);
+      const current = latestJobs.get(job.documentId);
+      if (!current || current.status === 'approved') {
+        latestJobs.set(job.documentId, job);
+      }
     });
     latestJobs.forEach((job, documentId) => updateDocumentPrintStatus(documentId, job));
 
-    if (jobs.some(job => job.status === 'queued' || job.status === 'printing')) {
+    if (jobs.some(job => job.status === 'queued' || job.status === 'printing') ||
+      requests.some(request => request.status === 'pending_approval')) {
       printStatusPollTimer = setTimeout(() => {
         printStatusPollTimer = null;
         refreshPrintStatuses();
@@ -111,9 +189,9 @@ async function refreshPrintStatuses() {
   }
 }
 
-function viewDoc(filename, originalName) {
+function viewDoc(documentId, originalName) {
   document.getElementById('previewFileName').textContent = originalName;
-  document.getElementById('previewEmbed').src = `/uploads/${filename}`;
+  document.getElementById('previewEmbed').src = `/api/documents/${encodeURIComponent(documentId)}/file`;
   previewModal.show();
 }
 
@@ -128,9 +206,53 @@ function openPrintModal(docId, originalName) {
   document.getElementById('printStatusMessage').textContent = '';
   const confirmButton = document.getElementById('confirmPrintBtn');
   confirmButton.disabled = false;
-  confirmButton.textContent = 'Send to Printer';
+  confirmButton.textContent = "I've paid · Request approval";
+  updatePrintQuote();
   printModal.show();
 }
+
+async function updatePrintQuote() {
+  if (!currentPrintDocId) return;
+  const refreshId = ++quoteRefreshId;
+  const copies = document.getElementById('copiesInput').value;
+  const color = document.querySelector('input[name="colorMode"]:checked').value;
+  const statusBox = document.getElementById('printStatus');
+  const confirmButton = document.getElementById('confirmPrintBtn');
+  confirmButton.disabled = true;
+  document.getElementById('receiptPages').textContent = 'Calculating…';
+
+  try {
+    const response = await fetch('/api/print/quote', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ documentId: currentPrintDocId, copies, color })
+    });
+    const data = await response.json();
+    if (refreshId !== quoteRefreshId) return;
+    if (!response.ok) throw new Error(data.error || 'Could not calculate receipt.');
+
+    document.getElementById('receiptPages').textContent = `${data.pages} (${data.totalPages} printed)`;
+    document.getElementById('receiptCopies').textContent = String(data.copies);
+    document.getElementById('receiptRate').textContent = `${data.color === 'bw' ? 'Black & white' : 'Color'} · ৳${data.ratePerPage}/page`;
+    document.getElementById('receiptTotal').textContent = `৳${data.totalBdt} BDT`;
+    statusBox.className = 'alert alert-info d-none';
+    confirmButton.disabled = false;
+  } catch (error) {
+    if (refreshId !== quoteRefreshId) return;
+    statusBox.className = 'alert alert-danger';
+    document.getElementById('printStatusMessage').textContent = error.message;
+    document.getElementById('printStatusSpinner').classList.add('d-none');
+  } finally {
+    if (refreshId === quoteRefreshId && !statusBox.classList.contains('alert-danger')) {
+      confirmButton.disabled = false;
+    }
+  }
+}
+
+document.getElementById('copiesInput').addEventListener('change', updatePrintQuote);
+document.querySelectorAll('input[name="colorMode"]').forEach(input => {
+  input.addEventListener('change', updatePrintQuote);
+});
 
 document.getElementById('confirmPrintBtn').addEventListener('click', async () => {
   const copies = document.getElementById('copiesInput').value;
@@ -141,13 +263,13 @@ document.getElementById('confirmPrintBtn').addEventListener('click', async () =>
   const confirmButton = document.getElementById('confirmPrintBtn');
 
   statusBox.className = 'alert alert-info';
-  statusMessage.textContent = 'Sending your document to the printer...';
+  statusMessage.textContent = 'Sending your payment confirmation to the admin...';
   statusSpinner.classList.remove('d-none');
   confirmButton.disabled = true;
   confirmButton.textContent = 'Sending...';
 
   try {
-    const res = await fetch('/api/print', {
+    const res = await fetch('/api/print/payment-requests', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ documentId: currentPrintDocId, copies, color })
@@ -156,7 +278,7 @@ document.getElementById('confirmPrintBtn').addEventListener('click', async () =>
 
     if (!res.ok) {
       statusBox.className = 'alert alert-danger';
-      statusMessage.textContent = data.error || 'The print job could not be sent.';
+      statusMessage.textContent = data.error || 'The payment request could not be sent.';
       statusSpinner.classList.add('d-none');
       confirmButton.disabled = false;
       confirmButton.textContent = 'Try Again';
@@ -164,10 +286,10 @@ document.getElementById('confirmPrintBtn').addEventListener('click', async () =>
     }
 
     statusBox.className = 'alert alert-warning';
-    statusMessage.textContent = `Added to the print queue. Your position is ${data.position}.`;
+    statusMessage.textContent = `Payment request sent for ৳${data.totalBdt} BDT. Printing starts after admin approval.`;
     statusSpinner.classList.add('d-none');
-    confirmButton.textContent = 'Queued';
-    updateDocumentPrintStatus(currentPrintDocId, data);
+    confirmButton.textContent = 'Approval requested';
+    updateDocumentPrintStatus(currentPrintDocId, { status: data.status });
     printModal.hide();
     refreshPrintStatuses();
   } catch (err) {

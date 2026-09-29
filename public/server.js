@@ -6,7 +6,7 @@ const authRoutes = require('../routes/auth');
 const uploadRoutes = require('../routes/upload');
 const printRoutes = require('../routes/print');
 const adminRoutes = require('../routes/admin');
-const { requireAdmin, requireAdminPage } = require('../middleware/admin');
+const { hasAdminAccess, requireAdminPage } = require('../middleware/admin');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -25,6 +25,11 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'landing.html'));
 });
 
+app.get('/admin', (req, res) => {
+  const page = hasAdminAccess(req) ? 'admin.html' : 'admin-login.html';
+  res.sendFile(path.join(__dirname, page));
+});
+
 app.get('/admin.html', requireAdminPage, (req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));
 });
@@ -32,9 +37,6 @@ app.get('/admin.html', requireAdminPage, (req, res) => {
 // Keep the server entry point private while serving frontend assets.
 app.get('/server.js', (req, res) => res.sendStatus(404));
 app.use(express.static(__dirname));
-
-// Serve uploaded PDFs so they can be previewed in the browser
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 app.use('/api', authRoutes);
 app.use('/api', uploadRoutes);

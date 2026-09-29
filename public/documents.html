@@ -52,6 +52,21 @@
         <p id="noDocsMsg" class="text-muted d-none">No documents uploaded yet.</p>
       </div>
     </div>
+
+    <div class="card shadow-sm mt-4">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+          <h5 class="card-title mb-0">Payment history</h5>
+          <span id="paymentHistoryCount" class="small text-muted"></span>
+        </div>
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead><tr><th>Date</th><th>Document</th><th>Receipt</th><th>Payment</th><th>Print</th></tr></thead>
+            <tbody id="paymentHistoryBody"><tr><td colspan="5" class="text-muted">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Print options modal -->
@@ -70,7 +85,7 @@
           <p class="mb-3">Printing: <strong id="printFileName"></strong></p>
           <div class="mb-3">
             <label for="copiesInput" class="form-label">Number of copies</label>
-            <input type="number" class="form-control" id="copiesInput" min="1" value="1">
+            <input type="number" class="form-control" id="copiesInput" min="1" max="100" value="1">
           </div>
           <div class="mb-3">
             <label class="form-label d-block">Color mode</label>
@@ -83,10 +98,17 @@
               <label class="form-check-label" for="bwOption">Black &amp; White</label>
             </div>
           </div>
+          <div class="border rounded p-3 mb-3" aria-live="polite">
+            <div class="fw-semibold mb-2">Print receipt</div>
+            <div class="d-flex justify-content-between small py-1"><span>PDF pages</span><span id="receiptPages">—</span></div>
+            <div class="d-flex justify-content-between small py-1"><span>Copies</span><span id="receiptCopies">1</span></div>
+            <div class="d-flex justify-content-between small py-1"><span>Mode and rate</span><span id="receiptRate">—</span></div>
+            <div class="d-flex justify-content-between border-top mt-2 pt-2 fw-bold"><span>Total</span><span id="receiptTotal">—</span></div>
+          </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="button" id="confirmPrintBtn" class="btn btn-primary">Send to Printer</button>
+          <button type="button" id="confirmPrintBtn" class="btn btn-primary">I've paid · Request approval</button>
         </div>
       </div>
     </div>
